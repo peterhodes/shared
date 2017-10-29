@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+
+$search = "@ARGV";
+
+
+sub searchmanfile {
+    local $file   = shift;
+    local $search = shift;
+
+    $result = `zcat $file | groff -mandoc -Tascii 2>/dev/null | egrep -i "$search"`;
+    chomp($result);
+    $file =~ s:.*/(.*)\.[0-9a-zA-Z]+\.gz:$1: ;
+
+    if ($result) { $result =~ s/^\s+// ; print "$file : $result\n" }
+}
+
+@manlist = `ls -1 /usr/share/man/man*/*gz`;
+foreach $file (@manlist) {chomp($file) ; searchmanfile($file,$search) }
+
