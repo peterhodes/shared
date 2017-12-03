@@ -18,8 +18,7 @@ DENY_PROC_LIST=`cat $RULEFILE | awk '/^deny[ |\t]+process[ |\t]+/' | awk '{print
 ## Exit if User is in DENY_USER_LIST
 for VALUE in $DENY_USER_LIST
 do
-  [ $VALUE -eq $USER ] && logger -p mail.debug User $USER Process $PROC was denied access to $MAILBIN due to DENY USER RULE
-in $RULEFILE && exit
+  [ $VALUE -eq $USER ] && logger -p mail.debug User $USER Process $PROC was denied access to $MAILBIN due to DENY USER RULE in $RULEFILE && exit
 done
 
 ## Exit if User is in DENY_PROC_LIST
