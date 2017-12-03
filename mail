@@ -1,0 +1,32 @@
+#!/usr/bin/sh
+
+# Script to stop users (or processes) from sending mails.
+# Use this to help identify (or disable) a user or process that is misbehaving (e.g. sending spam/too many msgs).
+# Move mail program to /usr/bin/mail-original and replace binary with this script.
+
+
+RULEFILE="/etc/mailrules"
+MAILBIN="/usr/bin/mail-original"
+
+USER=`who am i | awk '{print $1}'`
+PROC=`ps -p $$ -o ppid | tail -1`
+
+DENY_USER_LIST=`cat $RULEFILE | awk '/^deny[ |\t]+user[ |\t]+/'    | awk '{print $3}'`
+DENY_PROC_LIST=`cat $RULEFILE | awk '/^deny[ |\t]+process[ |\t]+/' | awk '{print $3}'`
+
+
+## Exit if User is in DENY_USER_LIST
+for VALUE in $DENY_USER_LIST
+do
+  [ $VALUE -eq $USER ] && logger -p mail.debug User $USER Process $PROC was denied access to $MAILBIN due to DENY USER RULE
+in $RULEFILE && exit
+done
+
+## Exit if User is in DENY_PROC_LIST
+for VALUE in $DENY_PROC_LIST
+do
+  [ $VALUE -eq $PROC ] && logger -p mail.debug User $USER Process $PROC was denied access to $MAILBIN due to DENY PROCESS RULE in $RULEFILE && exit
+done
+
+logger -p mail.debug User $USER process $PROC invoked $MAILBIN
+$MAILBIN $*
