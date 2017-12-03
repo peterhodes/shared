@@ -1,0 +1,3 @@
+# MAILRULE file - (examples below).
+deny user root
+deny process 12345
