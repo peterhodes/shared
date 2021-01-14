@@ -63,7 +63,6 @@ else:
                 SecondaryOptionList = getOptionList(Cmd)
                 for SecondaryOption in SecondaryOptionList:
                         if SecondaryOption not in OptionDict[Option]:
-                                #OptionDict[Option].update({SecondaryOption:'placeholder'})
                                 OptionDict[Option].update({SecondaryOption:None})
                                 SecondaryOptionCount += 1
 
