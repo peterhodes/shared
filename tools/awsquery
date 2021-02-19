@@ -75,7 +75,7 @@ else:
 for Option in OptionDict.keys():
         for SecondaryOption in OptionDict[Option]:
                 for SearchExpression in SearchExpressionList:
-                        if re.search(SearchExpression,SecondaryOption):
+                        if re.search(SearchExpression,SecondaryOption) or Option == SearchExpression:
                                 SearchResult = 'aws ' + Option + ' ' + SecondaryOption + ' help'
                                 SearchResultList.append(SearchResult)
 
