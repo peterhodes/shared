@@ -1,0 +1,25 @@
+
+$ aws elasticbeanstalk create-application --application-name peter-elb-app --description "Peter Elastic Beanstalk Application"
+APPLICATION     arn:aws:elasticbeanstalk:eu-west-2:661920693034:application/peter-elb-app       peter-elb-app   2021-02-23T16:38:58.966Z   2021-02-23T16:38:58.966Z        Peter Elastic Beanstalk Application
+MAXAGERULE      False   False   180
+MAXCOUNTRULE    False   False   200
+
+$ aws elasticbeanstalk create-application-version --application-name peter-elb-app --version-label v1
+APPLICATIONVERSION      peter-elb-app   arn:aws:elasticbeanstalk:eu-west-2:661920693034:applicationversion/peter-elb-app/v1     2021-02-23T16:40:30.412Z   2021-02-23T16:40:30.412Z        UNPROCESSED     v1
+SOURCEBUNDLE    elasticbeanstalk-eu-west-2      GenericSampleApplication
+
+$ aws elasticbeanstalk list-available-solution-stacks | egrep -i python | egrep -i solutionstacks
+SOLUTIONSTACKS  64bit Amazon Linux 2018.03 v2.9.18 running Python 3.6
+SOLUTIONSTACKS  64bit Amazon Linux 2018.03 v2.9.15 running Python 3.4
+SOLUTIONSTACKS  64bit Amazon Linux 2018.03 v2.9.15 running Python
+SOLUTIONSTACKS  64bit Amazon Linux 2018.03 v2.9.15 running Python 2.7
+SOLUTIONSTACKS  64bit Debian jessie v2.16.0 running Python 3.4 (Preconfigured - Docker)
+SOLUTIONSTACKS  64bit Amazon Linux 2 v3.1.5 running Python 3.7
+
+$ aws elasticbeanstalk create-environment --environment-name development --application-name peter-elb-app --version-label v1 --solution-stack-name "64bit Amazon Linux 2018.03 v2.9.18 running Python 3.6" --option-settings OptionName="IamInstanceProfile",ResourceName="AWSEBAutoScalingLaunchConfiguration",Namespace="aws:autoscaling:launchconfiguration",Value="aws-elasticbeanstalk-ec2-role"
+peter-elb-app   2021-02-23T16:56:40.995Z        2021-02-23T16:56:40.995Z        arn:aws:elasticbeanstalk:eu-west-2:661920693034:environment/peter-elb-app/development      e-zp3uutha2q    development     Grey    arn:aws:elasticbeanstalk:eu-west-2::platform/Python 3.6 running on 64bit Amazon Linux/2.9.18       64bit Amazon Linux 2018.03 v2.9.18 running Python 3.6   Launching       v1
+TIER    WebServer       Standard        1.0
+
+$ aws elasticbeanstalk describe-environments
+ENVIRONMENTS    False   peter-elb-app   2021-02-23T16:56:40.985Z        2021-02-23T16:56:47.943Z        arn:aws:elasticbeanstalk:eu-west-2:661920693034:environment/peter-elb-app/development      e-zp3uutha2q    development     Grey    arn:aws:elasticbeanstalk:eu-west-2::platform/Python 3.6 running on 64bit Amazon Linux/2.9.18       64bit Amazon Linux 2018.03 v2.9.18 running Python 3.6   Launching
+TIER    WebServer       Standard        1.0
