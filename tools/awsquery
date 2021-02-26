@@ -72,15 +72,20 @@ else:
 
 
 
+OptionCount = 0
 for Option in OptionDict.keys():
         for SecondaryOption in OptionDict[Option]:
                 for SearchExpression in SearchExpressionList:
-                        if re.search(SearchExpression,SecondaryOption) or Option == SearchExpression:
+                        if re.search(SearchExpression,SecondaryOption) or re.search(SearchExpression,Option):
+                                OptionCount += 1
                                 SearchResult = 'aws ' + Option + ' ' + SecondaryOption + ' help'
                                 SearchResultList.append(SearchResult)
 
 for SearchResult in SearchResultList:
-    print(SearchResult)
+        print(SearchResult)
+
+print("Returned " + str(OptionCount) + " results")
+
 
 
 
