@@ -13,6 +13,8 @@ Mappings:
       AMI: ami-bf5540df
     eu-west-1:
       AMI: ami-3bfab942
+    eu-west-2:
+      AMI: ami-098828924dc89ea4a
     ap-southeast-1:
       AMI: ami-e2adf99e
     ap-southeast-2:
