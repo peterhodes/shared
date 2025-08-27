@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# dns-host-source.sh
+# Identify where a DNS record is hosted (authoritative NS, provider inference,
+# CNAME targets' hosting, and trace).
+#
+# Usage:
+#   ./dns-host-source.sh -z voice-commerce.com -n _dmarc.voice-commerce.com -t TXT
+#   ./dns-host-source.sh -z example.com -n www.example.com -t A
+#
+# Flags:
+#   -z  Zone apex (authoritative domain, e.g., voice-commerce.com)
+#   -n  Record name/FQDN to inspect (e.g., _dmarc.voice-commerce.com)
+#   -t  Record type (A|AAAA|CNAME|TXT|MX|...); default: TXT
+#   -w  Also show registrar WHOIS nameservers (optional; requires whois)
+#
+# Notes:
+# - Provider inference is best-effort via NS name patterns.
+# - +trace shows which authoritative server ultimately answers.
+# - If the record is a CNAME, we walk the chain and inspect the target zone’s NS.
+
+ZONE=""
+NAME=""
+RTYPE="TXT"
+DO_WHOIS=0
+
+while getopts ":z:n:t:w" opt; do
+  case "$opt" in
+    z) ZONE="$OPTARG" ;;
+    n) NAME="$OPTARG" ;;
+    t) RTYPE="$OPTARG" ;;
+    w) DO_WHOIS=1 ;;
+    *) echo "Unknown option: -$OPTARG" >&2; exit 1 ;;
+  esac
+done
+
+if [[ -z "$ZONE" || -z "$NAME" ]]; then
+  echo "Usage: $0 -z <zone> -n <fqdn> [-t <type>] [-w]" >&2
+  exit 1
+fi
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+infer_provider() {
+  # Infer provider from NS hostnames
+  # Input: newline-separated NS list on stdin
+  # Output: provider guess on stdout
+  awk '
+  BEGIN{lc=""; prov=""}
+  {
+    ns=tolower($0)
+    if (ns ~ /awsdns|route-53|amazonaws/) prov="Amazon Route 53"
+    if (ns ~ /\.cloudflare\.com$/ || ns ~ /\.cloudflare\.net$/) prov="Cloudflare"
+    if (ns ~ /\.google(domains)?\.com$/ || ns ~ /\.googledomains\.com$/ || ns ~ /ns-cloud-.*\.googledomains\.com$/) prov="Google Cl
+oud DNS / Google Domains"
+    if (ns ~ /\.azure-dns(-[a-z])?\.net$/) prov="Azure DNS"
+    if (ns ~ /ns\d+\.dnsmadeeasy\.com$/) prov="DNS Made Easy"
+    if (ns ~ /\.nsone\.net$/) prov="NS1 / IBM NS1"
+    if (ns ~ /\.ultradns\.(net|org|com)$/) prov="Neustar UltraDNS"
+    if (ns ~ /\.dynect\.net$/ || ns ~ /\.oracle(dyn)?\.com$/) prov="Oracle Dyn"
+    if (ns ~ /\.domaincontrol\.com$/) prov="GoDaddy"
+    if (ns ~ /\.namebrightdns\.com$/) prov="NameBright"
+    if (ns ~ /\.registrar-servers\.com$/) prov="Namecheap"
+    if (ns ~ /\.fastly-dns\.com$/) prov="Fastly"
+    if (ns ~ /\.akam\.net$/) prov="Akamai"
+    if (ns ~ /\.ns\.cloudns\.net$/) prov="ClouDNS"
+    if (ns ~ /\.dnsimple\.com$/) prov="DNSimple"
+    if (ns ~ /\.hekko\.pl$/) prov="Hekko"
+    if (ns ~ /\.digitalocean\.com$/) prov="DigitalOcean"
+    if (ns ~ /\.cloudns\.io$/) prov="ClouDNS"
+    if (ns ~ /\.cdmon\.net$/) prov="CDmon"
+    if (ns ~ /\.markmonitor\.com$/) prov="MarkMonitor"
+    if (ns ~ /\.gandi\.net$/) prov="Gandi"
+    if (ns ~ /\.cloudflare\.dns\.com$/) prov="DNS.com (Cloudflare Enterprise)"
+    lc = ns
+  }
+  END{
+    if (prov=="") print "Unknown/Custom (check NS list below)"
+    else print prov
+  }'
+}
+
+echo "=== ZONE (apex): $ZONE"
+echo "=== NAME (record): $NAME"
+echo "=== TYPE: $RTYPE"
+echo
+
+echo "==> Authoritative NS for zone ($ZONE):"
+NS_LIST="$(dig "$ZONE" NS +short | sed 's/\.$//')"
+if [[ -z "$NS_LIST" ]]; then
+  echo "No NS records found for $ZONE" >&2
+  exit 2
+fi
+printf ' - %s\n' $NS_LIST
+echo "Provider (inferred):"
+printf '%s\n' $NS_LIST | infer_provider
+echo
+
+echo "==> SOA for zone ($ZONE):"
+dig "$ZONE" SOA +nocmd +noall +answer || true
+echo
+
+echo "==> Direct query via default resolver:"
+dig "$NAME" "$RTYPE" +nocmd +noall +answer || true
+echo
+
+echo "==> Trace to authoritative (resolution path):"
+dig +trace "$NAME" "$RTYPE" || true
+echo
+
+# Check for CNAME chain
+echo "==> CNAME chain (if any):"
+MAX=10
+CUR="$NAME"
+i=0
+FOUND_CNAME=0
+while :; do
+  C=$(dig "$CUR" CNAME +short | sed 's/\.$//')
+  if [[ -z "$C" ]]; then
+    if [[ $FOUND_CNAME -eq 0 ]]; then
+      echo "(no CNAMEs)"
+    fi
+    break
+  fi
+  FOUND_CNAME=1
+  echo "$CUR -> $C"
+  CUR="$C"
+  i=$((i+1))
+  if [[ $i -ge $MAX ]]; then
+    echo "(stopped after $MAX CNAME hops)"
+    break
+  fi
+done
+echo
+
+if [[ $FOUND_CNAME -eq 1 ]]; then
+  TARGET_ZONE="$CUR"
+
+  # Derive target apex (best-effort): take last 2 or 3 labels iteratively
+  # Try exact NS lookup first (full target); if none, strip first label.
+  DERIVE="$TARGET_ZONE"
+  TRY=0
+  TNS=""
+  while [[ $TRY -lt 5 ]]; do
+    TNS="$(dig "$DERIVE" NS +short | sed 's/\.$//')"
+    if [[ -n "$TNS" ]]; then break; fi
+    DERIVE="${DERIVE#*.}"
+    TRY=$((TRY+1))
+  done
+
+  echo "==> Target of CNAME resolves within zone: $DERIVE"
+  if [[ -n "$TNS" ]]; then
+    echo "Authoritative NS for $DERIVE:"
+    printf ' - %s\n' $TNS
+    echo "Provider (inferred):"
+    printf '%s\n' $TNS | infer_provider
+  else
+    echo "Could not find NS for $DERIVE (non-delegated/internal?)."
+  fi
+
+  echo
+  echo "==> Record at CNAME target (${CUR}) of type ${RTYPE} (and TXT if relevant):"
+  dig "$CUR" "$RTYPE" +nocmd +noall +answer || true
+  if [[ "$RTYPE" != "TXT" ]]; then
+    dig "$CUR" TXT +nocmd +noall +answer || true
+  fi
+  echo
+fi
+
+if [[ $DO_WHOIS -eq 1 ]]; then
+  if have whois; then
+    echo "==> Registrar WHOIS nameservers (zone: $ZONE):"
+    whois "$ZONE" 2>/dev/null | grep -iE 'Name Server:|nserver:' || true
+    echo
+    if [[ $FOUND_CNAME -eq 1 && -n "${DERIVE:-}" ]]; then
+      echo "==> Registrar WHOIS nameservers (target zone: $DERIVE):"
+      whois "$DERIVE" 2>/dev/null | grep -iE 'Name Server:|nserver:' || true
+      echo
+    fi
+  else
+    echo "whois not found; skip WHOIS (-w supplied)." >&2
+  fi
+fi
+
+echo "==> Summary:"
+echo "- Zone $ZONE is hosted by the NS above (provider inference shown)."
+if [[ $FOUND_CNAME -eq 1 ]]; then
+  echo "- $NAME is a CNAME; the ultimate data is served under $DERIVE."
+  echo "- Provider for $DERIVE is inferred from its NS (shown above)."
+else
+  echo "- $NAME is not a CNAME; data is hosted directly under zone $ZONE."
+fi
+
+echo "Done."
