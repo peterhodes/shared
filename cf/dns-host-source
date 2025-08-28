@@ -52,8 +52,7 @@ infer_provider() {
     ns=tolower($0)
     if (ns ~ /awsdns|route-53|amazonaws/) prov="Amazon Route 53"
     if (ns ~ /\.cloudflare\.com$/ || ns ~ /\.cloudflare\.net$/) prov="Cloudflare"
-    if (ns ~ /\.google(domains)?\.com$/ || ns ~ /\.googledomains\.com$/ || ns ~ /ns-cloud-.*\.googledomains\.com$/) prov="Google Cl
-oud DNS / Google Domains"
+    if (ns ~ /\.google(domains)?\.com$/ || ns ~ /\.googledomains\.com$/ || ns ~ /ns-cloud-.*\.googledomains\.com$/) prov="Google Cloud DNS / Google Domains"
     if (ns ~ /\.azure-dns(-[a-z])?\.net$/) prov="Azure DNS"
     if (ns ~ /ns\d+\.dnsmadeeasy\.com$/) prov="DNS Made Easy"
     if (ns ~ /\.nsone\.net$/) prov="NS1 / IBM NS1"
