@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOMAIN="$1"
+
+if [[ -z "$DOMAIN" ]]; then
+  echo "Usage: $0 example.com"
+  exit 1
+fi
+
+echo "=== Domain: $DOMAIN"
+
+echo
+echo "== SPF:"
+dig +short TXT "$DOMAIN" | grep -i "v=spf1" || echo "No SPF record found."
+
+echo
+echo "== DMARC:"
+dig +short TXT "_dmarc.$DOMAIN" | grep -i "v=DMARC1" || echo "No DMARC record found."
+
+echo
+echo "== DKIM:"
+# Try common selectors
+for sel in default selector1 selector2 google; do
+  REC="$sel._domainkey.$DOMAIN"
+  OUT=$(dig +short TXT "$REC" | grep -i "v=DKIM1" || true)
+  if [[ -n "$OUT" ]]; then
+    echo "$REC:"
+    echo "$OUT"
+    echo
+  fi
+done
+
+echo "Done."
