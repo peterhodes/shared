@@ -54,7 +54,7 @@ infer_provider() {
     if (ns ~ /\.cloudflare\.com$/ || ns ~ /\.cloudflare\.net$/) prov="Cloudflare"
     if (ns ~ /\.google(domains)?\.com$/ || ns ~ /\.googledomains\.com$/ || ns ~ /ns-cloud-.*\.googledomains\.com$/) prov="Google Cloud DNS / Google Domains"
     if (ns ~ /\.azure-dns(-[a-z])?\.net$/) prov="Azure DNS"
-    if (ns ~ /ns\d+\.dnsmadeeasy\.com$/) prov="DNS Made Easy"
+    if (ns ~ /ns[0-9]+\.dnsmadeeasy\.com$/) prov="DNS Made Easy"
     if (ns ~ /\.nsone\.net$/) prov="NS1 / IBM NS1"
     if (ns ~ /\.ultradns\.(net|org|com)$/) prov="Neustar UltraDNS"
     if (ns ~ /\.dynect\.net$/ || ns ~ /\.oracle(dyn)?\.com$/) prov="Oracle Dyn"
